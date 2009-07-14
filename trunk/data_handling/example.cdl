@@ -1,0 +1,20 @@
+netcdf example {    // example netCDF specification in CDL
+ 
+dimensions:
+  lat = 10, lon = 5, time = unlimited;
+ 
+variables:
+  int lat(lat);
+      lat:long_name = "latitude";
+      lat:units = "degreesN";
+  int lon(lon);
+      lon:long_name = "longitude";
+      lon:units = "degreeE";
+  int time(time);
+      time:units = "years";
+  float v(time,lat,lon);
+       v:long_name = "some quantity v";
+data:
+   lat   = 0, 10, 20, 30, 40, 50, 60, 70, 80, 90;
+   lon   = -140, -118, -96, -84, -52;
+}
