@@ -1,0 +1,6 @@
+2009-07-22 Ian Rutt
+ * Removed duplicate files from top-level directory
+ * Added ChangeLog
+ * Fixed bug in plotCD.py. This /might/ however be dependent on the
+	version of matplotlib used - should be checked when we have the
+	machines we're going to use in front of us...
