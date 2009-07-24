@@ -1,3 +1,11 @@
+2009-07-24 Magnus Hagdorn
+ * cd_fd/cd.F90: indent program, use doxygen for comments
+ * cd_fd/cd_implicit.F90: ditto
+ * cd_fd/derivatives.F90: ditto
+ * cd_fd/solvers.F90: ditto
+ * cd_fd/doxy.conf: add doxygen configuration
+ * data_handling/example.cdl: add a global attribute
+
 2009-07-22 Ian Rutt
  * Removed duplicate files from top-level directory
  * Added ChangeLog
