@@ -8,10 +8,10 @@ OBJS=derivatives.o solvers.o
 all: $(EXES)
 
 $(EXE1) : cd.F90 derivatives.o
-	$(FC) $< derivatives.o -o $@
+	$(FC) $^ -o $@
 
 $(EXE2) : cd_implicit.F90 $(OBJS)
-	$(FC) $< $(OBJS) -o $@
+	$(FC) $^ -o $@
 
 $(OBJS) : %.o: %.F90
 	$(FC) -c $< -o $@ 
