@@ -16,14 +16,18 @@ program explicit_convdiff
   use derivatives
   implicit none
 
-  integer, parameter :: N=50 ! Number of nodes
+  integer, parameter :: N=51 ! Number of nodes
   real :: dt, t, tfinal ! Time domain
   real :: xl, xr, dx   ! Space
-  real, dimension(:), allocatable :: x,u,dudx_store,convection,diffusion
+  real, dimension(:), allocatable :: x,u,dudx_store,convection,diffusion,ua
   real, dimension(:), allocatable :: d,c,s,f
+  real :: pi
   integer i
 
+  pi = 3.1415926536
+
   allocate(u(N))
+  allocate(ua(N))
   allocate(x(N))
   allocate(d(N))
   allocate(c(N))
@@ -40,19 +44,18 @@ program explicit_convdiff
   dx = real((xr - xl) / (N-1))
   ! Time
   t = 0.
-  tfinal = 0.05
-  dt = .0001
-
-  do i=1,N
-     x(i) = xl + real(dx * (i-1)) * (xr - xl)
-  enddo
+!  tfinal = 1.025
+  tfinal = 1.026
+  dt = .000125
+!  dt = .006
 
   ! Initial value
-  u = 0.
-
-  ! For now, start with a square wave.
-  u(N/2-3:N/2+3) = 1.
-
+  do i=1,N
+     x(i)  =  xl + real(dx * (i-1)) * (xr - xl)
+     u(i)  =  sin(pi * x(i))
+     ua(i) = sin(pi * x(i))
+  enddo
+  
   ! Thankfully, these are not time dependent.
   d = dfun(x)
   c = cfun(x)
@@ -68,14 +71,17 @@ program explicit_convdiff
 
      u = u + dt * (convection + diffusion + f * u + s)
 
+     ua = sin(pi*x) * exp(-pi**2*t)
+
      t = t + dt
      u(1)=0.
      u(N)=0.
 
-     write (*,*) u
+     write (*,*) 100.d0 * abs(u(2:N-1) - ua(2:N-1)) / ua(2-N-1)
   end do time_loop
 
   deallocate(u)
+  deallocate(ua)
   deallocate(x)
   deallocate(d)
   deallocate(c)
@@ -88,14 +94,14 @@ contains
     implicit none
     real, intent(in) :: x
     real dfun
-    dfun = 0.
+    dfun = 1.
   end function dfun
 
   elemental function cfun(x)
     implicit none
     real, intent(in) :: x
     real cfun
-    cfun = 100.
+    cfun = 0.
   end function cfun
 
   elemental function ffun(x)
