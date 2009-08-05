@@ -1,19 +1,25 @@
 
 FC=gfortran
-EXE=cd.exe
+EXE1=cd.exe
+EXE2=cd_implicit.exe
+EXES=$(EXE1) $(EXE2)
+OBJS=derivatives.o solvers.o
 
-all: $(EXE)
+all: $(EXES)
 
-$(EXE) : cd.F90 derivatives.o
+$(EXE1) : cd.F90 derivatives.o
 	$(FC) $< derivatives.o -o $@
 
-derivatives.o: 
-	$(FC) -c derivatives.F90 -o derivatives.o
+$(EXE2) : cd_implicit.F90 $(OBJS)
+	$(FC) $< $(OBJS) -o $@
+
+$(OBJS) : %.o: %.F90
+	$(FC) -c $< -o $@ 
 
 .PHONY: all clean spotless
 
 clean:
-	\rm -f derivatives.o cd.o
+	\rm -f $(OBJS)
 
 spotless:
-	\rm -f derivatives.o cd.o $(EXE)
+	\rm -f $(OBJS) $(EXES)
