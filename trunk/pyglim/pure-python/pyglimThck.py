@@ -161,7 +161,6 @@ class SIAsolver(object):
 
         # Solve system
         info, iter, relres = its.pcg(matrix, rhs, ans, 1e-10, 100)
-        print info, iter, relres
 
         # Rejig the solution onto a 2D array
         for ns in range(self.mainGrid.ny):
