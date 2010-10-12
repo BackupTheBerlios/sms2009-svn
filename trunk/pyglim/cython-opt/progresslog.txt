@@ -1,0 +1,308 @@
+
+Tue Jun 15
+==========
+
+Initial configuration from tag pysparse-version
+
+Profile for 30000 years (3000 x 10 year timesteps):
+
+         31147565 function calls in 557.502 CPU seconds
+
+   Ordered by: cumulative time
+   List reduced from 53 to 10 due to restriction <10>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.000    0.000  557.502  557.502 <string>:1(<module>)
+        1    0.398    0.398  557.502  557.502 testpyglim.py:10(runISM)
+      300    0.011    0.000  557.097    1.857 pyglim.py:47(timestep)
+     3000    0.097    0.000  557.085    0.186 pyglimThck.py:174(timestep)
+     3000  394.466    0.131  430.309    0.143 pyglimThck.py:101(_thckEvolve)
+     3000   18.585    0.006   71.619    0.024 pyglimThck.py:20(glide_maskthck)
+     6000    8.655    0.001   53.925    0.009 pyglimGrid.py:35(df_field_2d_staggered)
+  2883000   33.839    0.000   49.180    0.000 pyglimThck.py:13(thckcrit)
+  2523000   35.166    0.000   35.166    0.000 pyglimThck.py:93(_findSums)
+  5400000   22.656    0.000   22.656    0.000 pyglimGrid.py:29(dfdx_2d_stag)
+
+Total time was 557.5 seconds (9m 17s)
+
+--------------------------------------------------------------------------
+
+Moved boundary conditions and RHS calculation into separate
+subroutines
+
+         36205565 function calls in 567.936 CPU seconds
+
+   Ordered by: cumulative time
+   List reduced from 59 to 25 due to restriction <25>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.000    0.000  567.936  567.936 <string>:1(<module>)
+        1    0.529    0.529  567.936  567.936 /data/pyglim/testpyglim.py:10(runISM)
+      300    0.012    0.000  567.399    1.891 /data/pyglim/pyglim.py:47(timestep)
+     3000    0.101    0.000  567.387    0.189 /data/pyglim/pyglimThck.py:190(timestep)
+     3000   66.372    0.022  439.052    0.146 /data/pyglim/pyglimThck.py:159(_thckEvolve)
+  2523000  219.957    0.000  219.957    0.000 /data/pyglim/pyglimThck.py:143(_fillMatrix)
+     3000   19.072    0.006   72.836    0.024 /data/pyglim/pyglimThck.py:20(glide_maskthck)
+  2523000   58.297    0.000   58.297    0.000 /data/pyglim/pyglimThck.py:130(_calcRHS)
+     6000    8.619    0.001   54.258    0.009 /data/pyglim/pyglimGrid.py:35(df_field_2d_staggered)
+  2883000   34.090    0.000   49.750    0.000 /data/pyglim/pyglimThck.py:13(thckcrit)
+     3000   43.755    0.015   43.857    0.015 /data/pyglim/pyglimThck.py:154(_regrid)
+  2523000   35.514    0.000   35.514    0.000 /data/pyglim/pyglimThck.py:93(_findSums)
+  5400000   22.762    0.000   22.762    0.000 /data/pyglim/pyglimGrid.py:29(dfdx_2d_stag)
+  5400000   22.741    0.000   22.741    0.000 /data/pyglim/pyglimGrid.py:32(dfdy_2d_stag)
+  2883000   15.660    0.000   15.660    0.000 {method 'any' of 'numpy.ndarray' objects}
+     3000    7.486    0.002    7.489    0.002 /data/pyglim/pyglimThck.py:100(_applyULBCs)
+     3000    6.903    0.002    6.907    0.002 /data/pyglim/pyglimThck.py:115(_applyLRBCs)
+  5766000    2.435    0.000    2.435    0.000 {max}
+  5766000    1.483    0.000    1.483    0.000 {min}
+     3000    0.800    0.000    0.956    0.000 /data/pyglim/pyglimThck.py:85(_calcDiffu)
+     3000    0.077    0.000    0.529    0.000 /data/pyglim/pyglimThck.py:150(_solveSystem)
+   477301    0.455    0.000    0.455    0.000 {range}
+     3000    0.451    0.000    0.452    0.000 {pysparse.itsolvers.pcg}
+     3000    0.156    0.000    0.156    0.000 {numpy.core.multiarray.where}
+     3000    0.143    0.000    0.143    0.000 /data/pyglim/pyglimGrid.py:20(stagvarb)
+
+--------------------------------------------------------------------------
+
+So, the most important subs are _fillMatrix (40%), _thckEvolve (12%),
+_calcRHS (10%), _regrid (8%), _findSums (6%), thckcrit (6%). These
+correspond to 80% of the time taken.
+
+Wed Jun 16
+==========
+
+Refactored _calcRHS into Cython module pyglimCore, as stand-alone
+subroutine. New benchmarking:
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.000    0.000  533.851  533.851 <string>:1(<module>)
+        1    0.254    0.254  533.851  533.851 /data/pyglim/testpyglim.py:10(runISM)
+      300    0.012    0.000  533.589    1.779 /data/pyglim/pyglim.py:47(timestep)
+     3000    0.110    0.000  533.576    0.178 /data/pyglim/pyglimThck.py:193(timestep)
+     3000   72.160    0.024  400.272    0.133 /data/pyglim/pyglimThck.py:160(_thckEvolve)
+  2523000  224.237    0.000  224.237    0.000 /data/pyglim/pyglimThck.py:144(_fillMatrix)
+     3000   19.375    0.006   75.177    0.025 /data/pyglim/pyglimThck.py:21(glide_maskthck)
+     6000    8.781    0.001   56.831    0.009 /data/pyglim/pyglimGrid.py:35(df_field_2d_staggered)
+  2883000   35.743    0.000   51.725    0.000 /data/pyglim/pyglimThck.py:14(thckcrit)
+     3000   44.854    0.015   44.953    0.015 /data/pyglim/pyglimThck.py:155(_regrid)
+  2523000   38.344    0.000   38.344    0.000 /data/pyglim/pyglimThck.py:94(_findSums)
+  5400000   23.965    0.000   23.965    0.000 /data/pyglim/pyglimGrid.py:32(dfdy_2d_stag)
+  5400000   23.964    0.000   23.964    0.000 /data/pyglim/pyglimGrid.py:29(dfdx_2d_stag)
+  2883000   15.982    0.000   15.982    0.000 {method 'any' of 'numpy.ndarray' objects}
+     3000    7.693    0.003    7.696    0.003 /data/pyglim/pyglimThck.py:101(_applyULBCs)
+     3000    7.097    0.002    7.100    0.002 /data/pyglim/pyglimThck.py:116(_applyLRBCs)
+  2523000    5.092    0.000    5.092    0.000 {pyglimCore.calcRHS}
+  5766000    2.475    0.000    2.475    0.000 {max}
+  5766000    1.500    0.000    1.500    0.000 {min}
+     3000    0.828    0.000    0.990    0.000 /data/pyglim/pyglimThck.py:86(_calcDiffu)
+     3000    0.089    0.000    0.549    0.000 /data/pyglim/pyglimThck.py:151(_solveSystem)
+     3000    0.460    0.000    0.460    0.000 {pysparse.itsolvers.pcg}
+   477301    0.452    0.000    0.452    0.000 {range}
+     3000    0.161    0.000    0.161    0.000 {numpy.core.multiarray.where}
+     3000    0.150    0.000    0.150    0.000 /data/pyglim/pyglimGrid.py:20(stagvarb)
+
+--------------------------------------------------------------------------
+
+Now, pyglimCore.calcRHS represents less than 1% of the total time, so
+a ten-fold improvement.
+
+Thu Jun 17
+==========
+
+Refactored _fillMatrix into pyglimCore. New benchmarking:
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.000    0.000  221.434  221.434 <string>:1(<module>)
+        1    0.140    0.140  221.434  221.434 /data/pyglim/testpyglim.py:10(runISM)
+      300    0.010    0.000  221.286    0.738 /data/pyglim/pyglim.py:47(timestep)
+     3000    0.101    0.000  221.275    0.074 /data/pyglim/pyglimThck.py:194(timestep)
+     3000   25.896    0.009   91.549    0.031 /data/pyglim/pyglimThck.py:160(_thckEvolve)
+     3000   18.818    0.006   72.838    0.024 /data/pyglim/pyglimThck.py:21(glide_maskthck)
+     6000    9.297    0.002   55.628    0.009 /data/pyglim/pyglimGrid.py:35(df_field_2d_staggered)
+  2883000   34.224    0.000   50.018    0.000 /data/pyglim/pyglimThck.py:14(thckcrit)
+  2523000   33.624    0.000   33.624    0.000 /data/pyglim/pyglimThck.py:94(_findSums)
+  5400000   23.122    0.000   23.122    0.000 /data/pyglim/pyglimGrid.py:29(dfdx_2d_stag)
+  5400000   23.086    0.000   23.086    0.000 /data/pyglim/pyglimGrid.py:32(dfdy_2d_stag)
+  2883000   15.793    0.000   15.793    0.000 {method 'any' of 'numpy.ndarray' objects}
+  2523000   12.290    0.000   12.290    0.000 {pyglimCore.fillMatrix}
+     3000   11.149    0.004   11.222    0.004 /data/pyglim/pyglimThck.py:155(_regrid)
+  2523000    3.782    0.000    3.782    0.000 {pyglimCore.calcRHS}
+  5766000    2.433    0.000    2.433    0.000 {max}
+     3000    2.118    0.001    2.121    0.001 /data/pyglim/pyglimThck.py:101(_applyULBCs)
+     3000    1.958    0.001    1.962    0.001 /data/pyglim/pyglimThck.py:116(_applyLRBCs)
+  5766000    1.473    0.000    1.473    0.000 {min}
+     3000    0.816    0.000    0.975    0.000 /data/pyglim/pyglimThck.py:86(_calcDiffu)
+     3000    0.079    0.000    0.537    0.000 /data/pyglim/pyglimThck.py:151(_solveSystem)
+     3000    0.458    0.000    0.458    0.000 {pysparse.itsolvers.pcg}
+   477301    0.398    0.000    0.398    0.000 {range}
+     3000    0.159    0.000    0.159    0.000 {numpy.core.multiarray.where}
+     3000    0.141    0.000    0.141    0.000 /data/pyglim/pyglimGrid.py:20(stagvarb)
+
+--------------------------------------------------------------------------
+
+Now, pyglimCore.fillMatrix is 6% of the total, and is actually 18
+times faster. So, refactored _findSums. New benchmarks:
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.000    0.000  187.400  187.400 <string>:1(<module>)
+        1    0.106    0.106  187.400  187.400 /data/pyglim/testpyglim.py:10(runISM)
+      300    0.011    0.000  187.286    0.624 /data/pyglim/pyglim.py:47(timestep)
+     3000    0.104    0.000  187.275    0.062 /data/pyglim/pyglimThck.py:195(timestep)
+     3000   18.921    0.006   71.959    0.024 /data/pyglim/pyglimThck.py:21(glide_maskthck)
+     3000   24.666    0.008   57.517    0.019 /data/pyglim/pyglimThck.py:160(_thckEvolve)
+     6000    9.124    0.002   56.533    0.009 /data/pyglim/pyglimGrid.py:35(df_field_2d_staggered)
+  2883000   34.012    0.000   49.158    0.000 /data/pyglim/pyglimThck.py:14(thckcrit)
+  5400000   23.732    0.000   23.732    0.000 /data/pyglim/pyglimGrid.py:29(dfdx_2d_stag)
+  5400000   23.538    0.000   23.538    0.000 /data/pyglim/pyglimGrid.py:32(dfdy_2d_stag)
+  2883000   15.146    0.000   15.146    0.000 {method 'any' of 'numpy.ndarray' objects}
+  2523000   11.592    0.000   11.592    0.000 {pyglimCore.fillMatrix}
+     3000   10.859    0.004   10.925    0.004 /data/pyglim/pyglimThck.py:155(_regrid)
+  2523000    3.809    0.000    3.809    0.000 {pyglimCore.calcRHS}
+  5766000    2.349    0.000    2.349    0.000 {max}
+     3000    2.124    0.001    2.127    0.001 /data/pyglim/pyglimThck.py:101(_applyULBCs)
+     3000    1.956    0.001    1.959    0.001 /data/pyglim/pyglimThck.py:116(_applyLRBCs)
+  2523000    1.791    0.000    1.791    0.000 {pyglimCore.findSums}
+  5766000    1.431    0.000    1.431    0.000 {min}
+     3000    0.823    0.000    0.982    0.000 /data/pyglim/pyglimThck.py:86(_calcDiffu)
+     3000    0.083    0.000    0.534    0.000 /data/pyglim/pyglimThck.py:151(_solveSystem)
+     3000    0.451    0.000    0.451    0.000 {pysparse.itsolvers.pcg}
+   477301    0.411    0.000    0.411    0.000 {range}
+     3000    0.159    0.000    0.159    0.000 {numpy.core.multiarray.where}
+     3000    0.136    0.000    0.136    0.000 /data/pyglim/pyglimGrid.py:20(stagvarb)
+
+--------------------------------------------------------------------------
+
+This is also an 18-fold increase in speed for findSums. Refactored
+thckcrit, giving:
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.000    0.000  131.801  131.801 <string>:1(<module>)
+        1    0.062    0.062  131.801  131.801 /data/pyglim/testpyglim.py:10(runISM)
+      300    0.011    0.000  131.727    0.439 /data/pyglim/pyglim.py:47(timestep)
+     3000    0.109    0.000  131.716    0.044 /data/pyglim/pyglimThck.py:195(timestep)
+     3000   25.187    0.008   57.642    0.019 /data/pyglim/pyglimThck.py:160(_thckEvolve)
+     6000    8.985    0.001   55.428    0.009 /data/pyglim/pyglimGrid.py:35(df_field_2d_staggered)
+  5400000   23.159    0.000   23.159    0.000 /data/pyglim/pyglimGrid.py:32(dfdy_2d_stag)
+  5400000   23.157    0.000   23.157    0.000 /data/pyglim/pyglimGrid.py:29(dfdx_2d_stag)
+     3000   13.521    0.005   17.356    0.006 /data/pyglim/pyglimThck.py:21(glide_maskthck)
+  2523000   11.203    0.000   11.203    0.000 {pyglimCore.fillMatrix}
+     3000   10.877    0.004   10.941    0.004 /data/pyglim/pyglimThck.py:155(_regrid)
+  2523000    3.780    0.000    3.780    0.000 {pyglimCore.calcRHS}
+     3000    2.087    0.001    2.089    0.001 /data/pyglim/pyglimThck.py:101(_applyULBCs)
+     3000    1.935    0.001    1.938    0.001 /data/pyglim/pyglimThck.py:116(_applyLRBCs)
+  2523000    1.851    0.000    1.851    0.000 {pyglimCore.findSums}
+  5766000    1.627    0.000    1.627    0.000 {max}
+  5766000    1.239    0.000    1.239    0.000 {min}
+     3000    0.830    0.000    0.991    0.000 /data/pyglim/pyglimThck.py:86(_calcDiffu)
+  2883000    0.891    0.000    0.891    0.000 {pyglimCore.thckcrit}
+     3000    0.081    0.000    0.541    0.000 /data/pyglim/pyglimThck.py:151(_solveSystem)
+     3000    0.460    0.000    0.460    0.000 {pysparse.itsolvers.pcg}
+   477301    0.371    0.000    0.371    0.000 {range}
+     3000    0.161    0.000    0.161    0.000 {numpy.core.multiarray.where}
+     3000    0.138    0.000    0.138    0.000 /data/pyglim/pyglimGrid.py:20(stagvarb)
+     9015    0.044    0.000    0.044    0.000 {numpy.core.multiarray.zeros}
+
+--------------------------------------------------------------------------
+
+This is a 38-fold speed-up. So, refactored grid-related code as pyx
+module, and also glide_maskthck:
+
+  ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.000    0.000   72.560   72.560 <string>:1(<module>)
+        1    0.189    0.189   72.560   72.560 /data/pyglim/testpyglim.py:10(runISM)
+      300    0.009    0.000   72.363    0.241 /data/pyglim/pyglim.py:47(timestep)
+     3000    0.089    0.000   72.353    0.024 /data/pyglim/pyglimThck.py:195(timestep)
+     3000   25.271    0.008   58.237    0.019 /data/pyglim/pyglimThck.py:160(_thckEvolve)
+  2523000   11.639    0.000   11.639    0.000 {pyglimCore.fillMatrix}
+     3000   10.815    0.004   10.882    0.004 /data/pyglim/pyglimThck.py:155(_regrid)
+     3000    8.056    0.003    8.056    0.003 {pyglimCore.glide_maskthck}
+     6000    4.847    0.001    4.847    0.001 {pyglimCGrid.df_field_2d_staggered}
+  2523000    3.923    0.000    3.923    0.000 {pyglimCore.calcRHS}
+     3000    2.108    0.001    2.110    0.001 /data/pyglim/pyglimThck.py:101(_applyULBCs)
+     3000    1.956    0.001    1.960    0.001 /data/pyglim/pyglimThck.py:116(_applyLRBCs)
+  2523000    1.895    0.000    1.895    0.000 {pyglimCore.findSums}
+     3000    0.794    0.000    0.950    0.000 /data/pyglim/pyglimThck.py:86(_calcDiffu)
+     3000    0.006    0.000    0.450    0.000 /data/pyglim/pyglimThck.py:151(_solveSystem)
+     3000    0.444    0.000    0.444    0.000 {pysparse.itsolvers.pcg}
+   195301    0.165    0.000    0.165    0.000 {range}
+     3000    0.156    0.000    0.156    0.000 {numpy.core.multiarray.where}
+     3000    0.134    0.000    0.134    0.000 {pyglimCGrid.stagvarb}
+     9009    0.034    0.000    0.034    0.000 {numpy.core.multiarray.zeros}
+     3000    0.010    0.000    0.010    0.000 {pysparse.spmatrix.ll_mat}
+     3000    0.008    0.000    0.008    0.000 {method 'copy' of 'numpy.ndarray' objects}
+      300    0.001    0.000    0.007    0.000 /usr/lib/python2.6/dist-packages/numpy/core/fromnumeric.py:1185(sum)
+      300    0.006    0.000    0.006    0.000 {method 'sum' of 'numpy.ndarray' objects}
+     3300    0.002    0.000    0.002    0.000 {isinstance}
+
+This is more like it! Just need to do _regrid and
+_thckEvolve. Achieved this by recasting pyglimThck.py as
+pyglimCThck.pyx. Final profiling data looks like this:
+
+  ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.000    0.000   35.700   35.700 <string>:1(<module>)
+        1    0.096    0.096   35.700   35.700 /data/pyglim/testpyglim.py:10(runISM)
+      300    0.011    0.000   35.594    0.119 /data/pyglim/pyglim.py:47(timestep)
+     3000   35.583    0.012   35.583    0.012 {timestep}
+      300    0.001    0.000    0.007    0.000 /usr/lib/python2.6/dist-packages/numpy/core/fromnumeric.py:1185(sum)
+      300    0.006    0.000    0.006    0.000 {method 'sum' of 'numpy.ndarray' objects}
+        1    0.000    0.000    0.003    0.003 /usr/lib/python2.6/dist-packages/Scientific/IO/NetCDF.py:170(NetCDFFile)
+        1    0.003    0.003    0.003    0.003 {apply}
+      300    0.001    0.000    0.001    0.000 {isinstance}
+      301    0.000    0.000    0.000    0.000 {range}
+
+So, because we have converted to pyx, we don't get detailed data on
+breakdown. However, this is a 15.6 times speed-up on my original code,
+for minimal changes.
+
+Is it fast enough, though? Compare with glimmer-cism2 refactor branch,
+running EISMINT1 Fixed Margin. This is for 200kyr, 10 year timesteps,
+output every 1000 years, but with thermal calculation enabled:
+
+real	4m8.165s
+user	4m4.470s
+sys	0m3.040s
+
+For 200kyr, our Python version does as follows... Actually, it
+doesn't, as it seems to have a rather bad memory leak! Further
+investigation seems to reveal that this is from pysparse. There seems
+to be a fix committed to the subversion trunk for pysparse, but it
+hasn't made it onto the release yet. Hmm....
+
+Upgraded to trunk of the pysparse repository. This fixes the memory leak!
+The time for a 200kyr run is:
+
+real	3m51.985s
+user	3m51.100s
+sys	0m0.370s
+
+A very encouraging result, even taking into account the lack of
+thermal code! The benchmarking looks like this:
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.000    0.000  231.346  231.346 <string>:1(<module>)
+        1    0.238    0.238  231.346  231.346 /data/pyglim/testpyglim.py:10(runISM)
+      200    0.047    0.000  231.103    1.156 /data/pyglim/pyglim.py:47(timestep)
+    20000  231.056    0.012  231.056    0.012 {timestep}
+      200    0.001    0.000    0.005    0.000 /usr/lib/python2.6/dist-packages/numpy/core/fromnumeric.py:1185(sum)
+      200    0.004    0.000    0.004    0.000 {method 'sum' of 'numpy.ndarray' objects}
+        1    0.000    0.000    0.000    0.000 /usr/lib/python2.6/dist-packages/Scientific/IO/NetCDF.py:170(NetCDFFile)
+      201    0.000    0.000    0.000    0.000 {range}
+        1    0.000    0.000    0.000    0.000 {apply}
+      200    0.000    0.000    0.000    0.000 {isinstance}
+        1    0.000    0.000    0.000    0.000 /data/pyglim/pyglim.py:8(__init__)
+        1    0.000    0.000    0.000    0.000 /data/pyglim/pyglim.py:31(setThicknessSolver)
+        1    0.000    0.000    0.000    0.000 {method 'close' of 'NetCDFFile' objects}
+        8    0.000    0.000    0.000    0.000 /data/pyglim/pyglimGrid.py:13(newArray)
+        9    0.000    0.000    0.000    0.000 {numpy.core.multiarray.zeros}
+        2    0.000    0.000    0.000    0.000 {method 'createVariable' of 'NetCDFFile' objects}
+        5    0.000    0.000    0.000    0.000 {method 'createDimension' of 'NetCDFFile' objects}
+        1    0.000    0.000    0.000    0.000 /usr/lib/python2.6/posixpath.py:245(expanduser)
+        1    0.000    0.000    0.000    0.000 /data/pyglim/pyglim.py:54(finish)
+        2    0.000    0.000    0.000    0.000 /data/pyglim/pyglimGrid.py:5(__init__)
+        1    0.000    0.000    0.000    0.000 {method 'startswith' of 'str' objects}
+        1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
+        1    0.000    0.000    0.000    0.000 {finish}
+
+Not very helpful...
+
+--------------------------------------------------------------------------
