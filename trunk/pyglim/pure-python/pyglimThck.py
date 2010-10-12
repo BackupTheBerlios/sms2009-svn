@@ -97,75 +97,96 @@ class SIAsolver(object):
         sumd[3] = self.fc2_5 * ((diffu[ewm,ns]  + diffu[ew,ns]))
         sumd[4] = - (sumd[0] + sumd[1] + sumd[2] + sumd[3])
 
-
-    def _thckEvolve(self,rhs,ans,calc_rhs,old_thck,new_thck,diffu,lsrf,acab):
-
-        matrix = pysp.ll_mat(self.totpts,self.totpts)
-
-        # Boundary Conditions ---------------------------------------------------------------
+    def _applyULBCs(self,matrix,old_thck,new_thck,mask,calc_rhs,
+                    rhs,ans):
         # lower and upper BC
         for ew in range(self.mainGrid.nx):
             ns = 0
-            if self.mask[ew,ns] != 0: 
-                matrix[int(self.mask[ew,ns]-1),int(self.mask[ew,ns]-1)] = 1.0
-                if calc_rhs: rhs[self.mask[ew,ns]-1] = old_thck[ew,ns] 
-                ans[self.mask[ew,ns]-1] = new_thck[ew,ns]
+            if mask[ew,ns] != 0: 
+                matrix[int(mask[ew,ns]-1),int(mask[ew,ns]-1)] = 1.0
+                if calc_rhs: rhs[mask[ew,ns]-1] = old_thck[ew,ns] 
+                ans[mask[ew,ns]-1] = new_thck[ew,ns]
 
             ns=self.mainGrid.ny-1
-            if self.mask[ew,ns] != 0:
-                matrix[int(self.mask[ew,ns]-1),int(self.mask[ew,ns]-1)] = 1.0
-                if calc_rhs: rhs[self.mask[ew,ns]-1] = old_thck[ew,ns] 
-                ans[self.mask[ew,ns]-1] = new_thck[ew,ns]
+            if mask[ew,ns] != 0:
+                matrix[int(mask[ew,ns]-1),int(mask[ew,ns]-1)] = 1.0
+                if calc_rhs: rhs[mask[ew,ns]-1] = old_thck[ew,ns] 
+                ans[mask[ew,ns]-1] = new_thck[ew,ns]
+
+    def _applyLRBCs(self,matrix,old_thck,new_thck,mask,calc_rhs,
+                    rhs,ans):
 
         # left and right BC (N.B. Periodic BCs are not implemented)
         for ns in range(1,self.mainGrid.ny-1):
             ew=0
-            if self.mask[ew,ns] != 0:
-                matrix[int(self.mask[ew,ns]-1),int(self.mask[ew,ns]-1)] = 1.0
-                if calc_rhs: rhs[self.mask[ew,ns]-1] = old_thck[ew,ns] 
-                ans[self.mask[ew,ns]-1] = new_thck[ew,ns]
+            if mask[ew,ns] != 0:
+                matrix[int(mask[ew,ns]-1),int(mask[ew,ns]-1)] = 1.0
+                if calc_rhs: rhs[mask[ew,ns]-1] = old_thck[ew,ns] 
+                ans[mask[ew,ns]-1] = new_thck[ew,ns]
 
             ew=self.mainGrid.nx-1
-            if self.mask[ew,ns] != 0:
-                matrix[int(self.mask[ew,ns]-1),int(self.mask[ew,ns]-1)] = 1.0
-                if calc_rhs: rhs[self.mask[ew,ns]-1] = old_thck[ew,ns] 
-                ans[self.mask[ew,ns]-1] = new_thck[ew,ns]
+            if mask[ew,ns] != 0:
+                matrix[int(mask[ew,ns]-1),int(mask[ew,ns]-1)] = 1.0
+                if calc_rhs: rhs[mask[ew,ns]-1] = old_thck[ew,ns] 
+                ans[mask[ew,ns]-1] = new_thck[ew,ns]
+
+    def _calcRHS(self,old_thck,lsrf,acab,sumd,ew,ns):
+        return (old_thck[ew,ns] * (1.0 - self.fc2_3 * sumd[4])
+                - self.fc2_3 * (old_thck[ew-1,ns]   * sumd[0]      
+                                + old_thck[ew+1,ns] * sumd[1]
+                                + old_thck[ew,ns-1] * sumd[2]
+                                + old_thck[ew,ns+1] * sumd[3]) 
+                - self.fc2_4 * (lsrf[ew,ns]     * sumd[4] 
+                                + lsrf[ew-1,ns] * sumd[0]
+                                + lsrf[ew+1,ns] * sumd[1]
+                                + lsrf[ew,ns-1] * sumd[2]
+                                + lsrf[ew,ns+1] * sumd[3]) 
+                + acab[ew,ns] * self.dt)
+
+    def _fillMatrix(self,matrix,mask,sumd,ew,ns):
+        matrix[int(mask[ew,ns]-1),int(mask[ew-1,ns]-1)] = sumd[0]
+        matrix[int(mask[ew,ns]-1),int(mask[ew+1,ns]-1)] = sumd[1]
+        matrix[int(mask[ew,ns]-1),int(mask[ew,ns-1]-1)] = sumd[2]
+        matrix[int(mask[ew,ns]-1),int(mask[ew,ns+1]-1)] = sumd[3]
+        matrix[int(mask[ew,ns]-1),int(mask[ew,ns]-1)]   = 1.0 + sumd[4]
+
+    def _solveSystem(self,matrix,rhs,ans):
+        info, iter, relres = its.pcg(matrix, rhs, ans, 1e-10, 100)
+        #print info, iter, relres
+
+    def _regrid(self,new_thck,mask,ans):
+
+        for ns in range(self.mainGrid.ny):
+            for ew in range(self.mainGrid.nx):
+                if mask[ew,ns] != 0: new_thck[ew,ns] = ans[mask[ew,ns]-1]
+
+    def _thckEvolve(self,rhs,ans,mask,calc_rhs,old_thck,new_thck,diffu,lsrf,acab):
+
+        matrix = pysp.ll_mat(self.totpts,self.totpts)
+
+        # Boundary Conditions ---------------------------------------------------------------
+        self._applyULBCs(matrix,old_thck,new_thck,self.mask,calc_rhs,rhs,ans)
+        self._applyLRBCs(matrix,old_thck,new_thck,self.mask,calc_rhs,rhs,ans)
 
         # Ice body
         sumd = np.zeros(5,dtype=np.float)
 
         for ns in range(1,self.mainGrid.ny-1):
             for ew in range(1,self.mainGrid.nx-1):
-                if self.mask[ew,ns] != 0:
+                if mask[ew,ns] != 0:
                     self._findSums(diffu,sumd,ew-1,ew,ns-1,ns)
                     # Matrix elements
-                    matrix[int(self.mask[ew,ns]-1),int(self.mask[ew-1,ns]-1)] = sumd[0]
-                    matrix[int(self.mask[ew,ns]-1),int(self.mask[ew+1,ns]-1)] = sumd[1]
-                    matrix[int(self.mask[ew,ns]-1),int(self.mask[ew,ns-1]-1)] = sumd[2]
-                    matrix[int(self.mask[ew,ns]-1),int(self.mask[ew,ns+1]-1)] = sumd[3]
-                    matrix[int(self.mask[ew,ns]-1),int(self.mask[ew,ns]-1)]   = 1.0 + sumd[4]
+                    self._fillMatrix(matrix,self.mask,sumd,ew,ns)
                     # RHS vector
                     if calc_rhs:
-                        rhs[self.mask[ew,ns]-1] = (old_thck[ew,ns] * (1.0 - self.fc2_3 * sumd[4])
-                                                   - self.fc2_3 * (old_thck[ew-1,ns]   * sumd[0]      
-                                                                   + old_thck[ew+1,ns] * sumd[1]
-                                                                   + old_thck[ew,ns-1] * sumd[2]
-                                                                   + old_thck[ew,ns+1] * sumd[3]) 
-                                                   - self.fc2_4 * (lsrf[ew,ns]     * sumd[4] 
-                                                                   + lsrf[ew-1,ns] * sumd[0]
-                                                                   + lsrf[ew+1,ns] * sumd[1]
-                                                                   + lsrf[ew,ns-1] * sumd[2]
-                                                                   + lsrf[ew,ns+1] * sumd[3]) 
-                                                   + acab[ew,ns] * self.dt)
-                    ans[self.mask[ew,ns]-1] = new_thck[ew,ns]
+                        rhs[mask[ew,ns]-1] = self._calcRHS(old_thck,lsrf,acab,sumd,ew,ns)
+                    ans[mask[ew,ns]-1] = new_thck[ew,ns]
 
         # Solve system
-        info, iter, relres = its.pcg(matrix, rhs, ans, 1e-10, 100)
+        self._solveSystem(matrix,rhs,ans)
 
         # Rejig the solution onto a 2D array
-        for ns in range(self.mainGrid.ny):
-            for ew in range(self.mainGrid.nx):
-                if self.mask[ew,ns] != 0: new_thck[ew,ns] = ans[self.mask[ew,ns]-1]
+        self._regrid(new_thck,self.mask,ans)
 
         # Remove negatives
         new_thck[:] = np.maximum(0.0,new_thck)
@@ -202,7 +223,7 @@ class SIAsolver(object):
             for p in range(self.pmax):
 
                 # For non-linear computations only
-                if not self.linear: oldthck2 = thck.copy()
+                if not self.linear: oldthck2 = ISM.thck.copy()
                 if not self.linear and p>0:
                     pg.stagvarb(ISM.thck,self.stagthck,self.mainGrid)
                     pg.df_field_2d_staggered(ISM.usrf,self.dusrfdew,self.dusrfdns,self.mainGrid)
@@ -212,12 +233,12 @@ class SIAsolver(object):
                 self._calcDiffu(ISM.flwa,ISM.diffu)
 
                 # Evolve thickness
-                self._thckEvolve(rhs,ans,first_p,oldthck,ISM.thck,ISM.diffu,ISM.lsrf,acab)
+                self._thckEvolve(rhs,ans,self.mask,first_p,oldthck,ISM.thck,ISM.diffu,ISM.lsrf,acab)
 
                 first_p = False
                 if not self.linear: 
-                    residual = np.maximum(np.abs(thck-oldthck2))
-                    if residual < tol: break
+                    residual = np.maximum(np.abs(ISM.thck-oldthck2))
+                    if residual < self.tol: break
                 else:
                     break
 
