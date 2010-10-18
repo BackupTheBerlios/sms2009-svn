@@ -89,12 +89,8 @@ class SIAsolver(object):
                                  * np.power(np.sqrt(np.power(self.dusrfdew,2)
                                                     +np.power(self.dusrfdns,2)),pygc.p2),
                                  0.0)
-
-    def _thckEvolve(self,rhs,ans,calc_rhs,old_thck,new_thck,diffu,lsrf,acab):
-
-        matrix = pysp.ll_mat(self.totpts,self.totpts)
-
-        # Boundary Conditions ---------------------------------------------------------------
+    def _applyULBCs(self,matrix,old_thck,new_thck,mask,calc_rhs,
+                    rhs,ans):
         # lower and upper BC
         for bc in [0,self.mainGrid.ny-1]:
 
@@ -105,6 +101,9 @@ class SIAsolver(object):
                 rhs[idx] = old_thck[ rawIdx, bc].ravel()
             ans[idx] = new_thck[ rawIdx, bc].ravel()
 
+    def _applyLRBCs(self,matrix,old_thck,new_thck,mask,calc_rhs,
+                    rhs,ans):
+
         # left and right BC (N.B. Periodic BCs are not implemented)
         for bc in [0,self.mainGrid.nx-1]:
             rawIdx = np.nonzero( self.mask[bc,:])
@@ -113,7 +112,38 @@ class SIAsolver(object):
             if calc_rhs:
                 rhs[idx] = old_thck[ rawIdx, bc].ravel()
             ans[idx] = new_thck[ bc,rawIdx].ravel()
-            
+
+    def _calcRHS(self,old_thck,lsrf,acab,sum1,sum2,sum3,sum4,sum5,rawIdx):
+        return (old_thck[1:-1,1:-1] * (1.0 - self.fc2_3 * sum5)
+                        - self.fc2_3 * (old_thck[0:-2,1:-1]   * sum1
+                                        + old_thck[2:,1:-1]   * sum2
+                                        + old_thck[1:-1,0:-2] * sum3
+                                        + old_thck[1:-1,2:]   * sum4)
+                        - self.fc2_4 * (lsrf[1:-1,1:-1]       * sum5
+                                        + lsrf[0:-2,1:-1]     * sum1
+                                        + lsrf[2:,1:-1]       * sum2
+                                        + lsrf[1:-1,0:-2]     * sum3
+                                        + lsrf[1:-1,2:]       * sum4)
+                        + acab[1:-1,1:-1] * self.dt)[rawIdx]
+
+    def _solveSystem(self,matrix,rhs,ans):
+        info, iter, relres = its.pcg(matrix, rhs, ans, 1e-10, 100)
+        #print info, iter, relres
+
+    def _regrid(self,new_thck,mask,ans):
+
+        rawIdx = np.nonzero(self.mask)
+        idx  = self.mask[np.nonzero(self.mask)]-1
+        new_thck.flat[idx] = ans[idx]
+
+    def _thckEvolve(self,rhs,ans,mask,calc_rhs,old_thck,new_thck,diffu,lsrf,acab):
+
+        matrix = pysp.ll_mat(self.totpts,self.totpts)
+
+        # Boundary Conditions ---------------------------------------------------------------
+        self._applyULBCs(matrix,old_thck,new_thck,self.mask,calc_rhs,rhs,ans)
+        self._applyLRBCs(matrix,old_thck,new_thck,self.mask,calc_rhs,rhs,ans)
+
         # Ice body
         sumd = np.zeros(5,dtype=np.float)
 
@@ -141,28 +171,15 @@ class SIAsolver(object):
 
         # RHS vector
         if calc_rhs:
-            rhs[idx] = (old_thck[1:-1,1:-1] * (1.0 - self.fc2_3 * sum5)
-                        - self.fc2_3 * (old_thck[0:-2,1:-1]   * sum1
-                                        + old_thck[2:,1:-1]   * sum2
-                                        + old_thck[1:-1,0:-2] * sum3
-                                        + old_thck[1:-1,2:]   * sum4)
-                        - self.fc2_4 * (lsrf[1:-1,1:-1]       * sum5
-                                        + lsrf[0:-2,1:-1]     * sum1
-                                        + lsrf[2:,1:-1]       * sum2
-                                        + lsrf[1:-1,0:-2]     * sum3
-                                        + lsrf[1:-1,2:]       * sum4)
-                        + acab[1:-1,1:-1] * self.dt)[rawIdx]
-             
+            rhs[idx] = self._calcRHS(old_thck,lsrf,acab,sum1,sum2,sum3,sum4,sum5,rawIdx)
 
         ans[idx] = (new_thck[1:-1,1:-1])[rawIdx]
 
         # Solve system
-        info, iter, relres = its.pcg(matrix, rhs, ans, 1e-10, 100)
+        self._solveSystem(matrix,rhs,ans)
 
         # Rejig the solution onto a 2D array
-        rawIdx = np.nonzero(self.mask)
-        idx  = self.mask[np.nonzero(self.mask)]-1
-        new_thck.flat[idx] = ans[idx]
+        self._regrid(new_thck,self.mask,ans)
 
         # Remove negatives
         new_thck[:] = np.maximum(0.0,new_thck)
@@ -199,7 +216,7 @@ class SIAsolver(object):
             for p in range(self.pmax):
 
                 # For non-linear computations only
-                if not self.linear: oldthck2 = thck.copy()
+                if not self.linear: oldthck2 = ISM.thck.copy()
                 if not self.linear and p>0:
                     pg.stagvarb(ISM.thck,self.stagthck,self.mainGrid)
                     pg.df_field_2d_staggered(ISM.usrf,self.dusrfdew,self.dusrfdns,self.mainGrid)
@@ -209,12 +226,12 @@ class SIAsolver(object):
                 self._calcDiffu(ISM.flwa,ISM.diffu)
 
                 # Evolve thickness
-                self._thckEvolve(rhs,ans,first_p,oldthck,ISM.thck,ISM.diffu,ISM.lsrf,acab)
+                self._thckEvolve(rhs,ans,self.mask,first_p,oldthck,ISM.thck,ISM.diffu,ISM.lsrf,acab)
 
                 first_p = False
                 if not self.linear: 
-                    residual = np.maximum(np.abs(thck-oldthck2))
-                    if residual < tol: break
+                    residual = np.maximum(np.abs(ISM.thck-oldthck2))
+                    if residual < self.tol: break
                 else:
                     break
 
