@@ -54,6 +54,7 @@ class SIAsolver(object):
         self.alpha = 0.5   # Still not sure what this does
         self.fc2_3 = (1.0 - self.alpha) / self.alpha
         self.fc2_4 =  1.0 / self.alpha
+        self.tol = 1e-13
 
         # Set timestep
         self.setTimestep(dt)

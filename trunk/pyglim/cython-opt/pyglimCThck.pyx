@@ -109,20 +109,6 @@ class SIAsolver(object):
                                  * np.power(np.sqrt(np.power(self.dusrfdew,2)
                                                     +np.power(self.dusrfdns,2)),pygc.p2),
                                  0.0)
-
-    def _findSums(self,
-                  np.ndarray[np.float64_t, ndim=2] diffu,
-                  np.ndarray[np.float64_t, ndim=1] sumd,
-                  Py_ssize_t ewm,
-                  Py_ssize_t ew,
-                  Py_ssize_t nsm,
-                  Py_ssize_t ns):
-        sumd[0] = self.fc2_1 * ((diffu[ewm,nsm] + diffu[ewm,ns]))
-        sumd[1] = self.fc2_1 * ((diffu[ew,nsm]  + diffu[ew,ns]))
-        sumd[2] = self.fc2_5 * ((diffu[ewm,nsm] + diffu[ew,nsm]))
-        sumd[3] = self.fc2_5 * ((diffu[ewm,ns]  + diffu[ew,ns]))
-        sumd[4] = - (sumd[0] + sumd[1] + sumd[2] + sumd[3])
-
     def _applyULBCs(self,
                     matrix,
                     np.ndarray[np.float64_t, ndim=2] old_thck,
@@ -132,18 +118,14 @@ class SIAsolver(object):
                     np.ndarray[np.float64_t, ndim=1] rhs,
                     np.ndarray[np.float64_t, ndim=1] ans):
         # lower and upper BC
-        for ew in range(self.mainGrid.nx):
-            ns = 0
-            if mask[ew,ns] != 0: 
-                matrix[int(mask[ew,ns]-1),int(mask[ew,ns]-1)] = 1.0
-                if calc_rhs: rhs[mask[ew,ns]-1] = old_thck[ew,ns] 
-                ans[mask[ew,ns]-1] = new_thck[ew,ns]
+        for bc in [0,self.mainGrid.ny-1]:
 
-            ns=self.mainGrid.ny-1
-            if mask[ew,ns] != 0:
-                matrix[int(mask[ew,ns]-1),int(mask[ew,ns]-1)] = 1.0
-                if calc_rhs: rhs[mask[ew,ns]-1] = old_thck[ew,ns] 
-                ans[mask[ew,ns]-1] = new_thck[ew,ns]
+            rawIdx = np.nonzero( self.mask[:,bc])
+            idx = self.mask[ rawIdx, bc].ravel()-1
+            matrix[idx,idx] = 1.0
+            if calc_rhs:
+                rhs[idx] = old_thck[ rawIdx, bc].ravel()
+            ans[idx] = new_thck[ rawIdx, bc].ravel()
 
     def _applyLRBCs(self,
                     matrix,
@@ -154,49 +136,26 @@ class SIAsolver(object):
                     np.ndarray[np.float64_t, ndim=1] rhs,
                     np.ndarray[np.float64_t, ndim=1] ans):
         # left and right BC (N.B. Periodic BCs are not implemented)
-        for ns in range(1,self.mainGrid.ny-1):
-            ew=0
-            if mask[ew,ns] != 0:
-                matrix[int(mask[ew,ns]-1),int(mask[ew,ns]-1)] = 1.0
-                if calc_rhs: rhs[mask[ew,ns]-1] = old_thck[ew,ns] 
-                ans[mask[ew,ns]-1] = new_thck[ew,ns]
+        for bc in [0,self.mainGrid.nx-1]:
+            rawIdx = np.nonzero( self.mask[bc,:])
+            idx = self.mask[ bc,rawIdx].ravel()-1
+            matrix[idx,idx] = 1.0
+            if calc_rhs:
+                rhs[idx] = old_thck[ rawIdx, bc].ravel()
+            ans[idx] = new_thck[ bc,rawIdx].ravel()
 
-            ew=self.mainGrid.nx-1
-            if mask[ew,ns] != 0:
-                matrix[int(mask[ew,ns]-1),int(mask[ew,ns]-1)] = 1.0
-                if calc_rhs: rhs[mask[ew,ns]-1] = old_thck[ew,ns] 
-                ans[mask[ew,ns]-1] = new_thck[ew,ns]
-
-    def _calcRHS(self,
-                 np.ndarray[np.float64_t, ndim=2] old_thck,
-                 np.ndarray[np.float64_t, ndim=2] lsrf,
-                 np.ndarray[np.float64_t, ndim=2] acab,
-                 np.ndarray[np.float64_t, ndim=1] sumd,
-                 Py_ssize_t ew,
-                 Py_ssize_t ns):
-        return (old_thck[ew,ns] * (1.0 - self.fc2_3 * sumd[4])
-                - self.fc2_3 * (old_thck[ew-1,ns]   * sumd[0]      
-                                + old_thck[ew+1,ns] * sumd[1]
-                                + old_thck[ew,ns-1] * sumd[2]
-                                + old_thck[ew,ns+1] * sumd[3]) 
-                - self.fc2_4 * (lsrf[ew,ns]     * sumd[4] 
-                                + lsrf[ew-1,ns] * sumd[0]
-                                + lsrf[ew+1,ns] * sumd[1]
-                                + lsrf[ew,ns-1] * sumd[2]
-                                + lsrf[ew,ns+1] * sumd[3]) 
-                + acab[ew,ns] * self.dt)
-
-    def _fillMatrix(self,
-                    matrix,
-                    np.ndarray[np.int64_t,   ndim=2] mask,
-                    np.ndarray[np.float64_t, ndim=1] sumd,
-                    Py_ssize_t ew,
-                    Py_ssize_t ns):
-        matrix[int(mask[ew,ns]-1),int(mask[ew-1,ns]-1)] = sumd[0]
-        matrix[int(mask[ew,ns]-1),int(mask[ew+1,ns]-1)] = sumd[1]
-        matrix[int(mask[ew,ns]-1),int(mask[ew,ns-1]-1)] = sumd[2]
-        matrix[int(mask[ew,ns]-1),int(mask[ew,ns+1]-1)] = sumd[3]
-        matrix[int(mask[ew,ns]-1),int(mask[ew,ns]-1)]   = 1.0 + sumd[4]
+    def _calcRHS(self,old_thck,lsrf,acab,sum1,sum2,sum3,sum4,sum5,rawIdx):
+        return (old_thck[1:-1,1:-1] * (1.0 - self.fc2_3 * sum5)
+                        - self.fc2_3 * (old_thck[0:-2,1:-1]   * sum1
+                                        + old_thck[2:,1:-1]   * sum2
+                                        + old_thck[1:-1,0:-2] * sum3
+                                        + old_thck[1:-1,2:]   * sum4)
+                        - self.fc2_4 * (lsrf[1:-1,1:-1]       * sum5
+                                        + lsrf[0:-2,1:-1]     * sum1
+                                        + lsrf[2:,1:-1]       * sum2
+                                        + lsrf[1:-1,0:-2]     * sum3
+                                        + lsrf[1:-1,2:]       * sum4)
+                        + acab[1:-1,1:-1] * self.dt)[rawIdx]
 
     def _solveSystem(self,matrix,rhs,ans):
         info, iter, relres = its.pcg(matrix, rhs, ans, 1e-10, 100)
@@ -207,12 +166,9 @@ class SIAsolver(object):
                 np.ndarray[np.int64_t,   ndim=2] mask,
                 np.ndarray[np.float64_t, ndim=1] ans):
 
-        cdef Py_ssize_t ns
-        cdef Py_ssize_t ew
-
-        for ns in range(self.mainGrid.ny):
-            for ew in range(self.mainGrid.nx):
-                if mask[ew,ns] != 0: new_thck[ew,ns] = ans[mask[ew,ns]-1]
+        rawIdx = np.nonzero(mask)
+        idx  = mask[np.nonzero(mask)]-1
+        new_thck.flat[idx] = ans[idx]
 
     def _thckEvolve(self,
                     np.ndarray[np.float64_t, ndim=1] rhs,
@@ -234,19 +190,33 @@ class SIAsolver(object):
         # Ice body
         sumd = np.zeros(5,dtype=np.float)
 
-        cdef Py_ssize_t ew
-        cdef Py_ssize_t ns
-        
-        for ns in range(1,self.mainGrid.ny-1):
-            for ew in range(1,self.mainGrid.nx-1):
-                if mask[ew,ns] != 0:
-                    self._findSums(diffu,sumd,ew-1,ew,ns-1,ns)
-                    # Matrix elements
-                    self._fillMatrix(matrix,self.mask,sumd,ew,ns)
-                    # RHS vector
-                    if calc_rhs:
-                        rhs[mask[ew,ns]-1] = self._calcRHS(old_thck,lsrf,acab,sumd,ew,ns)
-                    ans[mask[ew,ns]-1] = new_thck[ew,ns]
+        rawIdx = np.nonzero(self.mask[1:-1,1:-1])
+        idx  = (self.mask[1:-1,1:-1])[rawIdx] -1
+
+        idx2 = (self.mask[0:-2,1:-1])[rawIdx] -1
+        sum1 = (self.fc2_1 * (diffu[0:-1,0:-1] + diffu[0:-1,1:]))
+        matrix.put(sum1.ravel(), idx, idx2)
+
+        idx2 = (self.mask[2:,1:-1])[rawIdx] -1
+        sum2 = (self.fc2_1 * (diffu[1:,0:-1] + diffu[1:,1:]))
+        matrix.put(sum2.ravel(), idx, idx2)
+
+        idx2 = (self.mask[1:-1,0:-2])[rawIdx] -1
+        sum3 = (self.fc2_5 * (diffu[0:-1,0:-1] + diffu[1:,0:-1]))
+        matrix.put(sum3.ravel(), idx, idx2)
+
+        idx2 = (self.mask[1:-1,2:])[rawIdx] -1
+        sum4 = (self.fc2_5 * (diffu[0:-1,1:] + diffu[1:,1:]))
+        matrix.put(sum4.ravel(), idx, idx2)
+
+        sum5 = -(sum1 + sum2 + sum3 + sum4)
+        matrix.put(1.+sum5.ravel(),idx,idx)
+
+        # RHS vector
+        if calc_rhs:
+            rhs[idx] = self._calcRHS(old_thck,lsrf,acab,sum1,sum2,sum3,sum4,sum5,rawIdx)
+
+        ans[idx] = (new_thck[1:-1,1:-1])[rawIdx]
 
         # Solve system
         self._solveSystem(matrix,rhs,ans)
